@@ -74,10 +74,13 @@ document.addEventListener('DOMContentLoaded', (event) => {
             var resultado = data.filter(function(obj) {
                 let prestacionNormalizada = eliminarAcentos(obj.prestacion.toLowerCase());
                 let moduloNormalizado = eliminarAcentos(obj.modulo.toLowerCase());
-
+                let observacionesNormalizadas = obj.observaciones ? eliminarAcentos(obj.observaciones.toLowerCase()) : "";
+                
                 if (valorBuscado !== "") {
-                    return prestacionNormalizada.includes(valorBuscado) || moduloNormalizado.includes(valorBuscado) || levenshteinSearch(prestacionNormalizada, valorBuscado);
-                } else {
+                    return prestacionNormalizada.includes(valorBuscado) ||
+                    moduloNormalizado.includes(valorBuscado) ||
+                    observacionesNormalizadas.includes(valorBuscado) || // Nueva condición para observaciones
+                    levenshteinSearch(prestacionNormalizada, valorBuscado);                } else {
                     return obj.modulo === valorCategoria;
                 }
             });
