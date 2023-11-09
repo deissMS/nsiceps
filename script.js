@@ -43,7 +43,7 @@ function s2ab(s) {
 }
 
 document.addEventListener('DOMContentLoaded', (event) => {
-    fetch('https://deissms.github.io/buscador_m/nomenclador.json')
+    fetch('https://deissms.github.io/nsiceps/nomenclador.json')
     .then(response => response.json())
     .then(data => {
         let categories = [...new Set(data.map(item => item.modulo))];
