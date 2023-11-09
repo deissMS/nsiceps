@@ -27,70 +27,72 @@ function levenshtein(a, b) {
     return matrix[b.length][a.length];
 }
 
+function eliminarAcentos(texto) {
+    return texto.normalize('NFD').replace(/[\u0300-\u036f]/g, "");
+}
+
+function isNumeric(n) {
+    return !isNaN(parseFloat(n)) && isFinite(n);
+}
+
+function s2ab(s) { 
+    var buf = new ArrayBuffer(s.length);
+    var view = new Uint8Array(buf); 
+    for (var i=0; i<s.length; i++) view[i] = s.charCodeAt(i) & 0xFF; 
+    return buf;    
+}
+
 document.addEventListener('DOMContentLoaded', (event) => {
-    fetch('https://deissms.github.io/nsiceps/nomenclador.json')
+    fetch('https://deissms.github.io/buscador_m/nomenclador.json')
     .then(response => response.json())
     .then(data => {
-        let modulos = [...new Set(data.map(item => item.modulo))];
-        let selectElement = document.getElementById('modulo');
-        modulos.forEach(modulo => {
+        let categories = [...new Set(data.map(item => item.modulo))];
+        let selectElement = document.getElementById('categoria');
+        categories.forEach(category => {
             let optionElement = document.createElement('option');
-            optionElement.value = modulo;
-            optionElement.textContent = modulo;
+            optionElement.value = category;
+            optionElement.textContent = category;
             selectElement.appendChild(optionElement);
         });
 
         document.getElementById('busqueda').addEventListener('input', function(e) {
-            document.getElementById('modulo').value = '';
+            document.getElementById('categoria').value = '';
         });
 
-        document.getElementById('modulo').addEventListener('change', function(e) {
+        document.getElementById('categoria').addEventListener('change', function(e) {
             document.getElementById('busqueda').value = '';
         });
-        
+
         document.getElementById('buscador').addEventListener('submit', function(e) {
             e.preventDefault();
-            document.getElementById('texto-seccion').innerHTML = ''; // limpia los resultados anteriores
+            let searchResult = document.getElementById('texto-seccion');
+            searchResult.innerHTML = '';  // Limpiar resultados anteriores
+
             var valorBuscado = eliminarAcentos(document.getElementById('busqueda').value.toLowerCase());
-            var valorCategoria = document.getElementById('modulo').value;
+            var valorCategoria = document.getElementById('categoria').value;
 
             var resultado = data.filter(function(obj) {
                 let prestacionNormalizada = eliminarAcentos(obj.prestacion.toLowerCase());
                 let moduloNormalizado = eliminarAcentos(obj.modulo.toLowerCase());
 
                 if (valorBuscado !== "") {
-                    if (nombreNormalizado.includes(valorBuscado) || categoriaNormalizada.includes(valorBuscado)) {
-                        return true;
-                    }
-                
-                    for (let i = 0; i <= nombreNormalizado.length - valorBuscado.length; i++) {
-                        const segmento = nombreNormalizado.substr(i, valorBuscado.length);
-                        if (levenshtein(segmento, valorBuscado) <= 4) {
-                            return true;
-                        }
-                    }
-                    return false;
-                }
-                 else {
+                    return prestacionNormalizada.includes(valorBuscado) || moduloNormalizado.includes(valorBuscado) || levenshteinSearch(prestacionNormalizada, valorBuscado);
+                } else {
                     return obj.modulo === valorCategoria;
                 }
             });
 
             if (resultado.length > 0) {
                 document.getElementById('texto-seccion').style.display = 'block';
-                var aranceles = resultado.map(function(obj) {
-                    var arancelText; // Cambiar 'coberturaText' por 'arancelText'
-                    if (isNumeric(obj.arancel)) { // Cambiar 'cobertura' por 'arancel'
-                      arancelText = (obj.arancel * 100) + '%';
-                    } else {
-                    arancelText = obj.arancel; // Cambiar 'cobertura' por 'arancel'
-                    }
-                    return '<p class="nombre-resultado">'+ obj.prestacion +'</p>' + // Cambiar 'nombre' por 'prestacion'
-                        '<p class="resultado">Modulo: ' + obj.modulo + '</p>' + // Cambiar 'CategorÍa' por 'Modulo' y 'categoria' por 'modulo'
-                        '<p class="resultado">Submodulo: ' + obj.submodulo + '</p>' + // Cambiar 'SubcategorÍa' por 'Submodulo' y 'subcategoria' por 'submodulo'
-                        '<p class="resultado">Código que la incluye: ' + obj.codigo + '</p>' + // Cambiar 'Normativa' por 'Código' y 'norma' por 'codigo'
-                        '<p class="resultado"><b>Nivel de arancel: ' + arancelText + '</b></p>' + // Cambiar 'Nivel de cobertura' por 'Nivel de arancel' y 'coberturaText' por 'arancelText'
-                        '<p class="resultado">Observaciones de uso: ' + obj.observaciones + '</p>'; // Cambiar 'Recomendaciones' por 'Observaciones' y 'recomendaciones' por 'observaciones'
+                var coberturas = resultado.map(function(obj) {
+                    var arancelFormateado = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(obj.arancel);
+                    
+                    return '<p class="nombre-resultado">'+ obj.prestacion +'</p>' +
+                        '<p class="resultado">Módulo: ' + obj.modulo + '</p>' +
+                        '<p class="resultado">Submódulo: ' + obj.submodulo + '</p>' +
+                        '<p class="resultado">Código: ' + obj.codigo + '</p>' +
+                        '<p class="resultado"><b>Arancel: ' + arancelFormateado + '</b></p>' +
+                        '<p class="resultado">Observaciones: ' + obj.observaciones + '</p>';
                 });
 
                 var tituloResultado = resultado.length === 1 ? "Resultado de la búsqueda: 1 prestación encontrada" : "Resultado de la búsqueda: " + resultado.length + " prestaciones encontradas";
@@ -99,21 +101,18 @@ document.addEventListener('DOMContentLoaded', (event) => {
                 <div class="acciones">
                     <button id="descargar-resultados" class="boton-accion">Descargar Resultados</button>
                     <button id="descargar-consolidado" class="boton-accion">Descargar Canasta Prestacional</button>
-                    <button id="ver-legislacion" class="boton-accion">Ver legislación</button>
+                    
                 </div>
                 <h2 class="titulo-resultado">${tituloResultado}</h2>
-                <p class="subtitulo-resultado">En caso de que las prestaciones se brinden en modalidad de internación, el Anexo I de la Resolución 201/2002 MS del PMO establece que la cobertura de las mismas deberá ser del 100%. 
-                Para aquellos casos en donde las prestaciones sean ambulatorias, y con excepción de aquellas en donde la legislación establece un nivel de cobertura explícito, los financiadores tienen permitido el cobro de un coseguro. 
-                Podés ver los valores de coseguros máximos autorizados por la Superintendencia de Servicios de Salud <a class="links" href="https://www.argentina.gob.ar/sssalud/valores-coseguros" target="_blank" rel="noopener">haciendo clic aquí</a>.</p>
-                ` + coberturas.join('<hr>');
+                ` + coberturas.join('<hr>'); //<button id="ver-legislacion" class="boton-accion">Ver legislación</button>
 
                 document.getElementById('descargar-consolidado').addEventListener('click', function() {
-                  window.location.href = 'data/consolidado.xlsx'; // Cambiar la ruta del archivo si es necesario
+                  window.location.href = 'data/nomenclador.xlsx'; // Cambiar la ruta del archivo si es necesario
                 });
 
-                document.getElementById('ver-legislacion').addEventListener('click', function() {
-                    window.open('legislacion.html', '_blank');
-                    });
+                //document.getElementById('ver-legislacion').addEventListener('click', function() {
+                  //  window.open('legislacion.html', '_blank');
+                   // });
                     
                 document.getElementById('descargar-resultados').addEventListener('click', function() {
                   /* Crear un objeto de libro de trabajo */
@@ -128,13 +127,13 @@ document.addEventListener('DOMContentLoaded', (event) => {
                 wb.SheetNames.push("Resultados");
 
                   /* Convertir los datos a formato de hoja de cálculo */
-                  var ws_data = resultado.map(function(obj) {
+                var ws_data = resultado.map(function(obj) {
                     return [
                         obj.prestacion,
                         obj.modulo,
                         obj.submodulo,
                         obj.codigo,
-                        isNumeric(obj.arancel) ? (obj.arancel * 100) + '%' : obj.arancel,
+                        isNumeric(obj.arancel) ? `$${parseFloat(obj.arancel).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : obj.arancel,
                         obj.observaciones
                     ];
                 });
@@ -157,6 +156,16 @@ document.addEventListener('DOMContentLoaded', (event) => {
     .catch(error => console.error('Error:', error));
 });
 
+function levenshteinSearch(source, searchTerm) {
+    for (let i = 0; i <= source.length - searchTerm.length; i++) {
+        const segment = source.substr(i, searchTerm.length);
+        if (levenshtein(segment, searchTerm) <= 4) {
+            return true;
+        }
+    }
+    return false;
+}
+
 document.getElementById('prestaciones').addEventListener('click', function(e) {
     e.preventDefault();
     window.open('prestaciones.html', '_blank');
@@ -167,17 +176,4 @@ document.getElementById('leyes').addEventListener('click', function(e) {
     window.open('leyes.html', '_blank');
 });
 
-function eliminarAcentos(texto) {
-    return texto.normalize('NFD').replace(/[\u0300-\u036f]/g, "");
-}
 
-function isNumeric(n) {
-    return !isNaN(parseFloat(n)) && isFinite(n);
-}
-
-function s2ab(s) { 
-    var buf = new ArrayBuffer(s.length);
-    var view = new Uint8Array(buf); 
-    for (var i=0; i<s.length; i++) view[i] = s.charCodeAt(i) & 0xFF; 
-    return buf;    
-}
