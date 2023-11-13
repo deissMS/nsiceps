@@ -103,7 +103,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
                 document.getElementById('texto-seccion').innerHTML = `
                 <div class="acciones">
                     <button id="descargar-resultados" class="boton-accion">Descargar Resultados</button>
-                    <button id="descargar-consolidado" class="boton-accion">Descargar Canasta Prestacional</button>
+                    <button id="descargar-consolidado" class="boton-accion">Descargar Nomenclador SICEPS</button>
                     
                 </div>
                 <h2 class="titulo-resultado">${tituloResultado}</h2>
